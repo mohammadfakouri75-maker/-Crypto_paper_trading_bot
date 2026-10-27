@@ -1,0 +1,27 @@
+name: Paper Trading Test
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Download project
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run paper trading check
+        run: |
+          python -c "import urllib.request, json; u='https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd'; r=urllib.request.Request(u, headers={'User-Agent':'PaperTradingBot/1.0'}); d=json.loads(urllib.request.urlopen(r,timeout=15).read()); print('BTC USD:', d['bitcoin']['usd']); print('ETH USD:', d['ethereum']['usd'])"
