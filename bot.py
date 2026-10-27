@@ -1,13 +1,14 @@
+import csv
 import json
-import time
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 STATE_FILE = Path("paper_state.json")
+TRADES_FILE = Path("trades.csv")
+
 STARTING_BALANCE = 1000.0
 FEE_RATE = 0.001
-INTERVAL = 60
 BUY_DROP = 0.005
 SELL_RISE = 0.005
 
@@ -16,18 +17,30 @@ COINS = {
     "ETH": "ethereum",
 }
 
+CSV_FIELDS = [
+    "timestamp",
+    "symbol",
+    "action",
+    "price",
+    "quantity",
+    "cash_balance",
+    "portfolio_value",
+    "profit_loss",
+]
+
 
 def get_prices():
     url = (
         "https://api.coingecko.com/api/v3/simple/price"
         "?ids=bitcoin,ethereum&vs_currencies=usd"
     )
+
     request = urllib.request.Request(
         url,
         headers={"User-Agent": "PaperTradingBot/1.0"},
     )
 
-    with urllib.request.urlopen(request, timeout=15) as response:
+    with urllib.request.urlopen(request, timeout=20) as response:
         data = json.loads(response.read().decode("utf-8"))
 
     return {
@@ -38,14 +51,20 @@ def get_prices():
 
 def load_state():
     if STATE_FILE.exists():
-        state = json.loads(
-            STATE_FILE.read_text(encoding="utf-8")
-        )
-        if all(
-            key in state
-            for key in ("cash", "coins", "last_prices", "trades")
-        ):
-            return state
+        try:
+            state = json.loads(
+                STATE_FILE.read_text(encoding="utf-8")
+            )
+
+            if all(
+                key in state
+                for key in ("cash", "coins", "last_prices")
+            ):
+                state.setdefault("trades", [])
+                return state
+
+        except (json.JSONDecodeError, OSError):
+            print("Could not read saved state; starting fresh.")
 
     return {
         "cash": STARTING_BALANCE,
@@ -62,25 +81,55 @@ def save_state(state):
     )
 
 
-def record_trade(state, symbol, side, price, amount, fee):
-    state["trades"].append({
-        "time": datetime.now(timezone.utc).isoformat(),
+def ensure_csv():
+    if not TRADES_FILE.exists() or TRADES_FILE.stat().st_size == 0:
+        with TRADES_FILE.open(
+            "w", newline="", encoding="utf-8"
+        ) as file:
+            writer = csv.DictWriter(file, fieldnames=CSV_FIELDS)
+            writer.writeheader()
+
+
+def portfolio_value(state, prices):
+    holdings = sum(
+        state["coins"][symbol] * prices[symbol]
+        for symbol in COINS
+    )
+    return state["cash"] + holdings
+
+
+def record_trade(state, symbol, action, price, amount, fee, prices):
+    total = portfolio_value(state, prices)
+
+    trade = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "symbol": symbol,
-        "side": side,
+        "action": action,
         "price": round(price, 2),
-        "amount": round(amount, 10),
-        "fee": round(fee, 4),
-    })
+        "quantity": round(amount, 10),
+        "cash_balance": round(state["cash"], 2),
+        "portfolio_value": round(total, 2),
+        "profit_loss": round(total - STARTING_BALANCE, 2),
+    }
+
+    state["trades"].append(trade)
+
+    with TRADES_FILE.open(
+        "a", newline="", encoding="utf-8"
+    ) as file:
+        writer = csv.DictWriter(file, fieldnames=CSV_FIELDS)
+        writer.writerow(trade)
 
 
 def process_prices(state, prices):
+    ensure_csv()
+
     for symbol, price in prices.items():
         previous = state["last_prices"].get(symbol)
 
         if previous is not None and previous > 0:
             change = (price - previous) / previous
 
-            # Buy only in the simulation after a price drop.
             if change <= -BUY_DROP and state["cash"] > 10:
                 budget = min(state["cash"] * 0.10, 50.0)
                 amount = budget / (price * (1 + FEE_RATE))
@@ -90,11 +139,12 @@ def process_prices(state, prices):
                 if cost + fee <= state["cash"]:
                     state["cash"] -= cost + fee
                     state["coins"][symbol] += amount
+
                     record_trade(
-                        state, symbol, "BUY", price, amount, fee
+                        state, symbol, "BUY",
+                        price, amount, fee, prices
                     )
 
-            # Sell a small part after a price rise.
             elif (
                 change >= SELL_RISE
                 and state["coins"][symbol] > 0
@@ -105,8 +155,10 @@ def process_prices(state, prices):
 
                 state["cash"] += proceeds - fee
                 state["coins"][symbol] -= amount
+
                 record_trade(
-                    state, symbol, "SELL", price, amount, fee
+                    state, symbol, "SELL",
+                    price, amount, fee, prices
                 )
 
         state["last_prices"][symbol] = price
@@ -124,34 +176,31 @@ def report(state, prices):
 
     print("\n--- PAPER TRADING REPORT ---")
     print("Time:", datetime.now(timezone.utc).isoformat())
-    print("Prices (USD):")
 
     for symbol in COINS:
-        print(f"  {symbol}: ${prices[symbol]:,.2f}")
+        print(f"{symbol} price: ${prices[symbol]:,.2f}")
 
     print(f"Virtual cash: ${state['cash']:,.2f}")
-    print(f"Virtual holdings: ${holdings:,.2f}")
-    print(f"Total value: ${total:,.2f}")
-    print(f"Unrealized + realized P/L: ${profit:,.2f}")
+    print(f"Holdings value: ${holdings:,.2f}")
+    print(f"Total portfolio: ${total:,.2f}")
+    print(f"Profit/Loss: ${profit:,.2f}")
     print(f"Recorded trades: {len(state['trades'])}")
     print("REAL ORDERS: DISABLED")
 
 
 def main():
-    state = load_state()
     print("Paper trading only. No real orders will be placed.")
 
-    while True:
-        try:
-            prices = get_prices()
-            process_prices(state, prices)
-            report(state, prices)
+    state = load_state()
 
-        except Exception as error:
-            print("Could not update prices:", error)
-            print("Check internet access or API availability.")
+    try:
+        prices = get_prices()
+        process_prices(state, prices)
+        report(state, prices)
 
-        time.sleep(INTERVAL)
+    except Exception as error:
+        print("Could not update prices:", error)
+        raise
 
 
 if __name__ == "__main__":
