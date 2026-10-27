@@ -1,27 +1,50 @@
-name: Paper Trading Test
+name: Paper Trading Bot
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "7,22,37,52 * * * *"
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: paper-trading-bot
+  cancel-in-progress: false
 
 jobs:
-  test:
+  trade:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
 
     steps:
-      - name: Download project
+      - name: Download repository
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Run paper trading check
+      - name: Restore saved trading state
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            paper_state.json
+            trades.csv
+          key: paper-state-${{ github.run_id }}
+          restore-keys: |
+            paper-state-
+
+      - name: Run paper trading bot
+        run: python bot.py
+
+      - name: Save trading history to repository
         run: |
-          python -c "import urllib.request, json; u='https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd'; r=urllib.request.Request(u, headers={'User-Agent':'PaperTradingBot/1.0'}); d=json.loads(urllib.request.urlopen(r,timeout=15).read()); print('BTC USD:', d['bitcoin']['usd']); print('ETH USD:', d['ethereum']['usd'])"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add paper_state.json trades.csv
+          git diff --cached --quiet || git commit -m "Update paper trading history"
+          git push
