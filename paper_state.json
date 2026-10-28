@@ -1,12 +1,12 @@
 {
-  "cash": 955.0331624251718,
+  "cash": 855.0331624251718,
   "coins": {
-    "BTC": 0.0,
-    "ETH": 0.019131923087254317
+    "BTC": 0.0006174677044322882,
+    "ETH": 0.04043467344232111
   },
   "last_prices": {
-    "BTC": 81343.0,
-    "ETH": 2363.47
+    "BTC": 80895.0,
+    "ETH": 2344.77
   },
   "trades": [
     {
@@ -28,6 +28,26 @@
       "cash_balance": 955.03,
       "portfolio_value": 1000.38,
       "profit_loss": 0.38
+    },
+    {
+      "timestamp": "2026-10-28T12:22:33.980113+00:00",
+      "symbol": "BTC",
+      "action": "BUY",
+      "price": 80895.0,
+      "quantity": 0.0006174677,
+      "cash_balance": 905.03,
+      "portfolio_value": 999.84,
+      "profit_loss": -0.16
+    },
+    {
+      "timestamp": "2026-10-28T12:22:33.980311+00:00",
+      "symbol": "ETH",
+      "action": "BUY",
+      "price": 2344.77,
+      "quantity": 0.0213027504,
+      "cash_balance": 855.03,
+      "portfolio_value": 999.79,
+      "profit_loss": -0.21
     }
   ]
 }
