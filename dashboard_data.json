@@ -1,0 +1,16 @@
+{
+  "starting_balance": 1000,
+  "cash": 1000,
+  "holdings": {
+    "BTC": 0,
+    "ETH": 0
+  },
+  "prices": {
+    "BTC": 0,
+    "ETH": 0
+  },
+  "portfolio_value": 1000,
+  "profit_loss": 0,
+  "trades": [],
+  "updated_at": null
+}
