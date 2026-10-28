@@ -28,7 +28,35 @@ CSV_FIELDS = [
     "profit_loss",
 ]
 
+def update_dashboard_data(state, prices):
+    holdings = {
+        symbol: state["coins"][symbol]
+        for symbol in COINS
+    }
 
+    holdings_value = sum(
+        holdings[symbol] * prices[symbol]
+        for symbol in COINS
+    )
+
+    total = state["cash"] + holdings_value
+
+    data = {
+        "starting_balance": STARTING_BALANCE,
+        "cash": round(state["cash"], 2),
+        "holdings": holdings,
+        "prices": prices,
+        "holdings_value": round(holdings_value, 2),
+        "portfolio_value": round(total, 2),
+        "profit_loss": round(total - STARTING_BALANCE, 2),
+        "trades": state["trades"][-50:],
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    Path("dashboard-data.json").write_text(
+        json.dumps(data, indent=2),
+        encoding="utf-8"
+    )
 def get_prices():
     url = (
         "https://api.coingecko.com/api/v3/simple/price"
