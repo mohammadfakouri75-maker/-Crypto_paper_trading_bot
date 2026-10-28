@@ -224,7 +224,8 @@ def main():
     try:
         prices = get_prices()
         process_prices(state, prices)
-        report(state, prices)
+update_dashboard_data(state, prices)
+report(state, prices)
 
     except Exception as error:
         print("Could not update prices:", error)
