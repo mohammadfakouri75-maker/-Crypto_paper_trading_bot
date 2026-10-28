@@ -1,12 +1,23 @@
 {
-  "cash": 1000.0,
+  "cash": 950.0,
   "coins": {
     "BTC": 0.0,
-    "ETH": 0.0
+    "ETH": 0.021257692319171465
   },
   "last_prices": {
-    "BTC": 81116.0,
-    "ETH": 2363.74
+    "BTC": 80835.0,
+    "ETH": 2349.74
   },
-  "trades": []
+  "trades": [
+    {
+      "timestamp": "2026-10-28T04:25:25.855151+00:00",
+      "symbol": "ETH",
+      "action": "BUY",
+      "price": 2349.74,
+      "quantity": 0.0212576923,
+      "cash_balance": 950.0,
+      "portfolio_value": 999.95,
+      "profit_loss": -0.05
+    }
+  ]
 }
